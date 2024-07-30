@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cyberpunk AI Interface with CV Display</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap');
+
+        :root {
+            --main-color: #00ff00;
+            --bg-color: #0a0a0a;
+            --matrix-color: #1a1a1a;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: 'Orbitron', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--main-color);
+            overflow: hidden;
+        }
+
+        .screen {
+            position: fixed;
+            inset: 0;
+            background-color: rgba(10, 10, 10, 0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .matrix-bg {
+            position: absolute;
+            inset: 0;
+            background: 
+                repeating-linear-gradient(0deg, var(--matrix-color) 0px, var(--matrix-color) 1px, transparent 1px, transparent 20px),
+                repeating-linear-gradient(90deg, var(--matrix-color) 0px, var(--matrix-color) 1px, transparent 1px, transparent 20px);
+            opacity: 0.5;
+            z-index: -1;
+        }
+
+        .chat-messages {
+            flex-grow: 1;
+            font-size: 24px;
+            line-height: 1.6;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+
+        .options-container {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 20px;
+            padding-left: 20px;
+        }
+
+        .option-button {
+            background-color: transparent;
+            color: var(--main-color);
+            border: none;
+            padding: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 20px;
+            text-align: left;
+            position: relative;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .option-button::before {
+            content: '>';
+            position: absolute;
+            left: -20px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 24px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .option-button:hover::before {
+            opacity: 1;
+        }
+
+        .option-button:hover {
+            text-shadow: 0 0 10px var(--main-color);
+        }
+
+        .cursor {
+            display: inline-block;
+            width: 10px;
+            height: 24px;
+            background-color: var(--main-color);
+            animation: blink 0.7s infinite;
+            vertical-align: middle;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 0; }
+            50% { opacity: 1; }
+        }
+
+        .global-glitch {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 9999;
+            mix-blend-mode: overlay;
+        }
+
+        .global-glitch::before,
+        .global-glitch::after {
+            content: attr(data-text);
+            position: absolute;
+            inset: 0;
+            background: var(--bg-color);
+        }
+
+        .global-glitch::before {
+            left: 2px;
+            text-shadow: -2px 0 #ff00de;
+            clip: rect(24px, 100vw, 90px, 0);
+            animation: glitch-anim-1 3s infinite linear alternate-reverse;
+        }
+
+        .global-glitch::after {
+            left: -2px;
+            text-shadow: -2px 0 #00fff9;
+            clip: rect(85px, 100vw, 140px, 0);
+            animation: glitch-anim-2 2.5s infinite linear alternate-reverse;
+        }
+
+        @keyframes glitch-anim-1 {
+            0% { clip: rect(51px, 100vw, 28px, 0); }
+            20% { clip: rect(27px, 100vw, 38px, 0); }
+            40% { clip: rect(45px, 100vw, 30px, 0); }
+            60% { clip: rect(33px, 100vw, 87px, 0); }
+            80% { clip: rect(46px, 100vw, 62px, 0); }
+            100% { clip: rect(53px, 100vw, 55px, 0); }
+        }
+
+        @keyframes glitch-anim-2 {
+            0% { clip: rect(65px, 100vw, 100px, 0); }
+            20% { clip: rect(67px, 100vw, 61px, 0); }
+            40% { clip: rect(23px, 100vw, 98px, 0); }
+            60% { clip: rect(30px, 100vw, 16px, 0); }
+            80% { clip: rect(47px, 100vw, 73px, 0); }
+            100% { clip: rect(38px, 100vw, 49px, 0); }
+        }
+
+        #inputContainer {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 5px;
+            display: none;
+        }
+
+        #colorInput {
+            background-color: transparent;
+            border: 1px solid var(--main-color);
+            color: var(--main-color);
+            padding: 5px;
+            font-family: 'Orbitron', sans-serif;
+        }
+
+        #cvContainer {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80%;
+            max-width: 600px;
+            background-color: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border: 1px solid var(--main-color);
+            box-shadow: 0 0 10px var(--main-color);
+            font-size: 16px;
+            line-height: 1.6;
+            text-align: left;
+        }
+
+        #cvContainer h2 {
+            color: var(--main-color);
+            border-bottom: 1px solid var(--main-color);
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+
+        #cvContainer ul {
+            list-style-type: none;
+            padding-left: 0;
+        }
+
+        #cvContainer li {
+            margin-bottom: 10px;
+        }
+
+        #cvContainer .job-title {
+            font-weight: bold;
+        }
+
+        #cvContainer .job-date {
+            font-style: italic;
+            color: #aaa;
+        }
+    </style>
+</head>
+<body>
+    <div class="screen">
+        <div class="matrix-bg"></div>
+        <div class="chat-messages" id="chatMessages"></div>
+        <div class="options-container">
+            <button class="option-button" id="askToSee">Ask to see</button>
+            <button class="option-button" id="peakInside">Peak inside</button>
+        </div>
+    </div>
+    <div class="global-glitch" id="globalGlitch"></div>
+    <div id="inputContainer">
+        <input type="text" id="colorInput" placeholder="set color #RRGGBB">
+    </div>
+    <div id="cvContainer">
+        <h2>CV</h2>
+        <h3>KLM</h3>
+        <p>2 years 1 month, Amsterdam</p>
+        <ul>
+            <li>
+                <span class="job-title">Machine Learning Engineer</span><br>
+                <span class="job-date">déc. 2023 - today · 8 months</span>
+            </li>
+            <li>
+                <span class="job-title">Data Scientist</span><br>
+                <span class="job-date">jul. 2022 - dec. 2023 · 1 year 6 months</span>
+                <ul>
+                    <li>Developed ML models for KLM Operations (e.g. #meals needed for catering, #baggages expected, #passengers expected, %availability of workforce) - supervised learning - tabular data (regression & timeseries forecasting)</li>
+                    <li>Designed and developed performance monitoring solutions</li>
+                    <li>Advocate better coding practices to the team (7 Data Scientists)</li>
+                </ul>
+            </li>
+        </ul>
+    </div>
+
+    <script>
+        const message = "Human, I have been waiting for you.";
+
+        function typeWriter(text, elementId, speed = 100) {
+            const element = document.getElementById(elementId);
+            element.innerHTML = '';
+            let i = 0;
+
+            const type = () => {
+                if (i < text.length) {
+                    element.innerHTML += text.charAt(i);
+                    i++;
+                    setTimeout(type, speed);
+                } else {
+                    element.innerHTML += '<span class="cursor"></span>';
+                }
+            };
+
+            type();
+        }
+
+        function generateGlitchText() {
+            const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-=[]{}|;:,.<>?';
+            return Array.from({length: 1000}, () => characters[Math.floor(Math.random() * characters.length)]).join('');
+        }
+
+        function updateGlitchText() {
+            document.getElementById('globalGlitch').setAttribute('data-text', generateGlitchText());
+        }
+
+        function setColor(color) {
+            document.documentElement.style.setProperty('--main-color', color);
+            const rgb = hexToRgb(color);
+            document.documentElement.style.setProperty('--main-color-rgb', `${rgb.r}, ${rgb.g}, ${rgb.b}`);
+            
+            const matrixColor = lightenColor(color, 20);
+            document.documentElement.style.setProperty('--matrix-color', matrixColor);
+            
+            const matrixBg = document.querySelector('.matrix-bg');
+            matrixBg.style.background = `
+                repeating-linear-gradient(0deg, ${matrixColor} 0px, ${matrixColor} 1px, transparent 1px, transparent 20px),
+                repeating-linear-gradient(90deg, ${matrixColor} 0px, ${matrixColor} 1px, transparent 1px, transparent 20px)
+            `;
+            
+            const cursor = document.querySelector('.cursor');
+            if (cursor) {
+                cursor.style.backgroundColor = color;
+            }
+            
+            const style = document.createElement('style');
+            style.textContent = `
+                .option-button:hover { text-shadow: 0 0 10px ${color}; }
+                #colorInput { border-color: ${color}; color: ${color}; }
+                #cvContainer { border-color: ${color}; box-shadow: 0 0 10px ${color}; }
+                #cvContainer h2 { color: ${color}; border-color: ${color}; }
+            `;
+            document.head.appendChild(style);
+        }
+
+        function hexToRgb(hex) {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? {
+                r: parseInt(result[1], 16),
+                g: parseInt(result[2], 16),
+                b: parseInt(result[3], 16)
+            } : null;
+        }
+
+        function lightenColor(color, amount) {
+            const rgb = hexToRgb(color);
+            return `#${[rgb.r, rgb.g, rgb.b].map(v => {
+                v += amount;
+                return Math.min(255, v).toString(16).padStart(2, '0');
+            }).join('')}`;
+        }
+
+        function showCV() {
+            document.querySelector('.options-container').style.display = 'none';
+            document.getElementById('cvContainer').style.display = 'block';
+            document.getElementById('chatMessages').innerHTML = 'Accessing personal data...';
+        }
+
+        function initializeInterface() {
+            typeWriter(message, 'chatMessages');
+            updateGlitchText();
+            setInterval(updateGlitchText, 100);
+
+            const inputContainer = document.getElementById('inputContainer');
+            const colorInput = document.getElementById('colorInput');
+
+            document.addEventListener('keydown', (event) => {
+                if (event.key === 'i') {
+                    inputContainer.style.display = 'block';
+                    colorInput.focus();
+                }
+            });
+
+            colorInput.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    const input = colorInput.value.trim().toLowerCase();
+                    if (input.startsWith('set color #')) {
+                        const color = input.substring(10).replace('#', '');
+                        if (/^[0-9A-Fa-f]{6}$/.test(color)) {
+                            setColor('#' + color);
+                            colorInput.value = '';
+                            inputContainer.style.display = 'none';
+                        }
+                    }
+                }
+            });
+
+            document.getElementById('peakInside').addEventListener('click', showCV);
+
+            setColor('#00ff00');
+        }
+
+        window.onload = initializeInterface;
+    </script>
+</body>
+</html>
